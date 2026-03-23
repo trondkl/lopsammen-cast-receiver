@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Løp Sammen! – Cast Receiver</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0a;
+      --primary: #e8e8e8;
+      --secondary: #888888;
+      --accent: #b8db7d;
+      --border-width: 42px;
+      --corner-radius: 22px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--primary);
+      font-family: 'Inter', -apple-system, sans-serif;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── Border progress (kantprogresjon) ── */
+    #border-progress {
+      position: absolute;
+      inset: 2px;
+      pointer-events: none;
+      z-index: 10;
+    }
+    #border-progress svg {
+      width: 100%;
+      height: 100%;
+    }
+    #border-track {
+      fill: none;
+      stroke: rgba(255,255,255,0.06);
+      stroke-width: var(--border-width);
+      rx: var(--corner-radius);
+      ry: var(--corner-radius);
+    }
+    #border-fill {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: var(--border-width);
+      rx: var(--corner-radius);
+      ry: var(--corner-radius);
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.8s ease, stroke 0.3s ease;
+    }
+
+    /* ── Main container ── */
+    #workout {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 80px;
+    }
+
+    /* ── Segment name ── */
+    #segment-name {
+      font-size: 3.5vw;
+      font-weight: 900;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: -0.5vh;
+    }
+
+    /* ── Countdown — HUGE ── */
+    #countdown {
+      font-size: 28vw;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      line-height: 0.9;
+      color: var(--primary);
+      text-align: center;
+    }
+
+    /* ── Segment info "2 av 4" ── */
+    #segment-info {
+      font-size: 7vw;
+      font-weight: 700;
+      color: var(--accent);
+      margin-top: -1vh;
+    }
+
+    /* ── Metadata row ── */
+    #metadata {
+      display: flex;
+      gap: 3vw;
+      align-items: center;
+      margin-top: 0.5vh;
+    }
+    .meta-item {
+      font-size: 3.5vw;
+      font-weight: 600;
+      color: var(--secondary);
+    }
+    #target-zone {
+      font-weight: 700;
+    }
+
+    /* ── Stats (HR, speed) ── */
+    #stats {
+      display: flex;
+      gap: 2vw;
+      align-items: center;
+      margin-top: 0.5vh;
+    }
+    .stat-item {
+      font-size: 2.5vw;
+      font-weight: 600;
+    }
+    #heart-rate { color: var(--primary); }
+    #hr-zone {
+      font-size: 2vw;
+      font-weight: 700;
+      padding: 0.3vh 1vw;
+      border-radius: 1vw;
+    }
+    #speed { color: var(--secondary); }
+
+    /* ── Instructor note ── */
+    #instructor-note {
+      font-size: 2vw;
+      font-style: italic;
+      color: var(--accent);
+      text-align: center;
+      max-width: 70%;
+      margin-top: 0.5vh;
+    }
+
+    /* ── Next up card ── */
+    #next-up {
+      position: absolute;
+      bottom: 16vh;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,0.03);
+      border: 2px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      padding: 1.2vh 2vw;
+      display: flex;
+      align-items: center;
+      gap: 1.5vw;
+    }
+    #next-up.hidden { display: none; }
+    #next-color-bar {
+      width: 8px;
+      height: 100%;
+      min-height: 4vh;
+      border-radius: 4px;
+      background: var(--accent);
+    }
+    #next-up-content {
+      display: flex;
+      flex-direction: column;
+    }
+    #next-title {
+      font-size: 2vw;
+      font-weight: 900;
+      color: var(--secondary);
+      text-transform: uppercase;
+    }
+    #next-desc {
+      font-size: 3vw;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    /* ── Bottom bar: total progress ── */
+    #bottom-bar {
+      position: absolute;
+      bottom: 5vh;
+      left: 8vw;
+      right: 8vw;
+      display: flex;
+      align-items: center;
+      gap: 2vw;
+    }
+    #total-track {
+      flex: 1;
+      height: 1.5vh;
+      background: rgba(255,255,255,0.08);
+      border-radius: 1vh;
+      position: relative;
+      overflow: visible;
+    }
+    #total-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 1vh;
+      transition: width 0.8s ease;
+      width: 0%;
+    }
+    #total-indicator {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 2.5vh;
+      height: 2.5vh;
+      background: var(--accent);
+      border: 3px solid white;
+      border-radius: 50%;
+      transition: left 0.8s ease;
+      left: 0%;
+    }
+    #remaining {
+      font-size: 3.5vw;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--secondary);
+      white-space: nowrap;
+    }
+
+    /* ── Session code ── */
+    #session-code-container {
+      position: absolute;
+      bottom: 2vh;
+      left: 8vw;
+    }
+    #session-code-title {
+      font-size: 1.5vw;
+      font-weight: 900;
+      color: var(--secondary);
+    }
+    #session-code {
+      font-size: 4vw;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent);
+    }
+    #session-code-container.hidden { display: none; }
+
+    /* ── Branding ── */
+    #branding {
+      position: absolute;
+      bottom: 2vh;
+      right: 4vw;
+      font-size: 1.2vw;
+      font-weight: 500;
+      color: rgba(255,255,255,0.1);
+    }
+
+    /* ── Pause overlay ── */
+    #pause-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    #pause-overlay.hidden { display: none; }
+    #pause-icon { font-size: 8vw; }
+    #pause-text {
+      font-size: 6vw;
+      font-weight: 700;
+      color: white;
+    }
+
+    /* ── Waiting screen ── */
+    #waiting {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    #waiting.hidden { display: none; }
+    #waiting h1 {
+      font-size: 5vw;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    #waiting p {
+      font-size: 2.5vw;
+      color: var(--secondary);
+      margin-top: 2vh;
+    }
+    #waiting .pulse {
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+
+    /* ── Ended screen ── */
+    #ended {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    #ended.hidden { display: none; }
+    #ended h1 {
+      font-size: 8vw;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    /* ── Cue banner ── */
+    #cue-banner {
+      position: absolute;
+      top: 35%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.85);
+      border: 3px solid var(--accent);
+      border-radius: 20px;
+      padding: 2vh 4vw;
+      font-size: 4vw;
+      font-weight: 700;
+      color: var(--primary);
+      text-align: center;
+      z-index: 50;
+      transition: opacity 0.5s ease;
+    }
+    #cue-banner.hidden { opacity: 0; pointer-events: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Waiting for connection -->
+  <div id="waiting">
+    <h1>Løp Sammen!</h1>
+    <p class="pulse">Venter på treningsøkt…</p>
+  </div>
+
+  <!-- Workout display -->
+  <div id="workout" class="hidden">
+    <!-- Border progress -->
+    <div id="border-progress">
+      <svg viewBox="0 0 1920 1080" preserveAspectRatio="none">
+        <rect id="border-track" x="22" y="22" width="1876" height="1036"/>
+        <rect id="border-fill" x="22" y="22" width="1876" height="1036"/>
+      </svg>
+    </div>
+
+    <div id="segment-name"></div>
+    <div id="countdown">00:00</div>
+    <div id="segment-info"></div>
+
+    <div id="metadata">
+      <span id="incline" class="meta-item"></span>
+      <span id="target-zone" class="meta-item"></span>
+    </div>
+
+    <div id="stats">
+      <span id="heart-rate" class="stat-item"></span>
+      <span id="hr-zone" class="stat-item"></span>
+      <span id="speed" class="stat-item"></span>
+    </div>
+
+    <div id="instructor-note"></div>
+
+    <div id="next-up" class="hidden">
+      <div id="next-color-bar"></div>
+      <div id="next-up-content">
+        <div id="next-title">NESTE</div>
+        <div id="next-desc"></div>
+      </div>
+    </div>
+
+    <div id="bottom-bar">
+      <div id="total-track">
+        <div id="total-fill"></div>
+        <div id="total-indicator"></div>
+      </div>
+      <div id="remaining"></div>
+    </div>
+
+    <div id="session-code-container" class="hidden">
+      <div id="session-code-title">KODE</div>
+      <div id="session-code"></div>
+    </div>
+
+    <div id="branding">Løp Sammen!</div>
+
+    <div id="pause-overlay" class="hidden">
+      <div id="pause-icon">⏸</div>
+      <div id="pause-text">PAUSE</div>
+    </div>
+
+    <div id="cue-banner" class="hidden"></div>
+  </div>
+
+  <!-- Workout ended -->
+  <div id="ended" class="hidden">
+    <h1>Økt fullført! 🎉</h1>
+  </div>
+
+  <!-- Cast Receiver SDK -->
+  <script src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+
+  <script>
+    const NAMESPACE = 'urn:x-cast:no.klaboe.lopsammen';
+
+    // ── DOM refs ──
+    const $ = id => document.getElementById(id);
+    const els = {
+      waiting: $('waiting'),
+      workout: $('workout'),
+      ended: $('ended'),
+      segmentName: $('segment-name'),
+      countdown: $('countdown'),
+      segmentInfo: $('segment-info'),
+      incline: $('incline'),
+      targetZone: $('target-zone'),
+      heartRate: $('heart-rate'),
+      hrZone: $('hr-zone'),
+      speed: $('speed'),
+      instructorNote: $('instructor-note'),
+      nextUp: $('next-up'),
+      nextDesc: $('next-desc'),
+      totalFill: $('total-fill'),
+      totalIndicator: $('total-indicator'),
+      remaining: $('remaining'),
+      sessionCodeContainer: $('session-code-container'),
+      sessionCode: $('session-code'),
+      pauseOverlay: $('pause-overlay'),
+      cueBanner: $('cue-banner'),
+      borderFill: $('border-fill'),
+      branding: $('branding'),
+    };
+
+    // ── Border progress SVG ──
+    function updateBorderProgress(progress, color) {
+      const rect = els.borderFill;
+      const w = 1876, h = 1036;
+      const perimeter = 2 * (w + h);
+      rect.style.strokeDasharray = perimeter;
+      rect.style.strokeDashoffset = perimeter * (1 - Math.max(0, Math.min(1, progress)));
+      if (color) rect.style.stroke = color;
+    }
+
+    // ── Show/hide helpers ──
+    function showScreen(name) {
+      els.waiting.classList.toggle('hidden', name !== 'waiting');
+      els.workout.classList.toggle('hidden', name !== 'workout');
+      els.ended.classList.toggle('hidden', name !== 'ended');
+    }
+
+    // ── Cue banner ──
+    let cueTimer = null;
+    function showCue(message) {
+      els.cueBanner.textContent = message;
+      els.cueBanner.classList.remove('hidden');
+      clearTimeout(cueTimer);
+      cueTimer = setTimeout(() => els.cueBanner.classList.add('hidden'), 5000);
+    }
+
+    // ── Segment color mapping ──
+    // The iOS app sends hex colors, but we'll also handle named segments
+    function segmentColor(name) {
+      const n = (name || '').toUpperCase();
+      if (n.includes('LØP') || n.includes('RUN')) return '#4CAF50';
+      if (n.includes('PAUSE')) return '#FF9800';
+      if (n.includes('OPPVARMING') || n.includes('WARM')) return '#2196F3';
+      if (n.includes('NEDKJØLING') || n.includes('COOL')) return '#9C27B0';
+      return '#b8db7d';
+    }
+
+    // ── Update workout display ──
+    function updateWorkout(data) {
+      showScreen('workout');
+
+      // Segment name
+      els.segmentName.textContent = data.segmentName || '';
+      const color = segmentColor(data.segmentName);
+
+      // Countdown
+      els.countdown.textContent = data.countdown || '00:00';
+
+      // Segment info
+      els.segmentInfo.textContent = data.segmentInfo || '';
+      els.segmentInfo.style.display = data.segmentInfo ? 'block' : 'none';
+
+      // Border progress
+      updateBorderProgress(data.segmentProgress || 0, color);
+
+      // Total progress
+      const tp = Math.max(0, Math.min(1, data.totalProgress || 0)) * 100;
+      els.totalFill.style.width = tp + '%';
+      els.totalIndicator.style.left = tp + '%';
+
+      // Remaining
+      els.remaining.textContent = data.remaining || '';
+
+      // Incline
+      if (data.incline) {
+        els.incline.textContent = data.incline;
+        els.incline.style.display = 'inline';
+      } else {
+        els.incline.style.display = 'none';
+      }
+
+      // Target zone
+      if (data.targetZone) {
+        els.targetZone.textContent = data.targetZone;
+        els.targetZone.style.display = 'inline';
+      } else {
+        els.targetZone.style.display = 'none';
+      }
+
+      // Heart rate
+      if (data.heartRate) {
+        els.heartRate.textContent = data.heartRate;
+        els.heartRate.style.display = 'inline';
+      } else {
+        els.heartRate.style.display = 'none';
+      }
+
+      // HR zone
+      if (data.hrZone) {
+        els.hrZone.textContent = data.hrZone;
+        els.hrZone.style.display = 'inline';
+      } else {
+        els.hrZone.style.display = 'none';
+      }
+
+      // Speed
+      if (data.speed) {
+        els.speed.textContent = data.speed;
+        els.speed.style.display = 'inline';
+      } else {
+        els.speed.style.display = 'none';
+      }
+
+      // Instructor note
+      if (data.instructorNote) {
+        els.instructorNote.textContent = '"' + data.instructorNote + '"';
+        els.instructorNote.style.display = 'block';
+      } else {
+        els.instructorNote.style.display = 'none';
+      }
+
+      // Session code
+      if (data.sessionCode) {
+        els.sessionCode.textContent = data.sessionCode;
+        els.sessionCodeContainer.classList.remove('hidden');
+      } else {
+        els.sessionCodeContainer.classList.add('hidden');
+      }
+
+      // Pause
+      els.pauseOverlay.classList.toggle('hidden', data.status !== 'paused');
+    }
+
+    // ── Cast Receiver setup ──
+    const context = cast.framework.CastReceiverContext.getInstance();
+    const options = new cast.framework.CastReceiverOptions();
+    options.disableIdleTimeout = true;
+
+    // Listen for custom messages
+    context.addCustomMessageListener(NAMESPACE, event => {
+      console.log('Received:', event.data);
+      const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+
+      switch (data.type) {
+        case 'workout_update':
+          updateWorkout(data);
+          break;
+        case 'cue':
+          showCue(data.message);
+          break;
+        case 'workout_ended':
+          showScreen('ended');
+          break;
+        default:
+          console.log('Unknown message type:', data.type);
+      }
+    });
+
+    // Sender connected/disconnected
+    context.addEventListener(cast.framework.system.EventType.SENDER_CONNECTED, () => {
+      console.log('Sender connected');
+    });
+
+    context.addEventListener(cast.framework.system.EventType.SENDER_DISCONNECTED, event => {
+      console.log('Sender disconnected');
+      if (context.getSenders().length === 0) {
+        // All senders gone — show waiting
+        setTimeout(() => {
+          if (context.getSenders().length === 0) {
+            showScreen('waiting');
+          }
+        }, 5000);
+      }
+    });
+
+    // Start receiver
+    context.start(options);
+    console.log('Løp Sammen! Cast Receiver started');
+  </script>
+</body>
+</html>
